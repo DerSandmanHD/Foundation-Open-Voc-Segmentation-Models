@@ -1,0 +1,26 @@
+# ====================================================================
+# Ignore all generated artifact directories and massive data folders
+# ====================================================================
+
+# Matches any images folder starting with 'images_' anywhere in the repo
+**/images_*/
+**/SIIM/
+
+# Output and experiment directories anywhere in the repo
+**/combined_plots/
+**/sam_batch_output/
+**/sam_experimente_output/
+**/text_prompt_output_10/
+**/text_prompt_output_50/
+
+# Python caching and environment overhead
+**/__pycache__/
+*.pyc
+
+# Heavy CSV datasets
+**/Data_Entry_2017.csv
+
+# Random loose visual checks
+**/sam_kontrolle.png
+**/dataset.py
+**/sam.py
