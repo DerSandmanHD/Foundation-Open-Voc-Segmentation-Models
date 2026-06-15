@@ -1,0 +1,14 @@
+Start skript: 
+python "C:\Users\user\Documents\3. Semester M\Machine Learning in Graphic, Vision and Language\Code\coco_sam_eval\evaluate_sam_coco.py" `
+  --coco_images "C:\Users\user\Documents\3. Semester M\Machine Learning in Graphic, Vision and Language\Code\data\val2017\val2017" `
+  --coco_annotations "C:\Users\user\Documents\3. Semester M\Machine Learning in Graphic, Vision and Language\Code\data\instances_val2017.json\instances_val2017.json" `
+  --checkpoint "C:\Users\user\Documents\3. Semester M\Machine Learning in Graphic, Vision and Language\Code\sam_models\sam_vit_b_01ec64.pth" `
+  --sam_repo_root "C:\Users\user\Documents\3. Semester M\Machine Learning in Graphic, Vision and Language\Code\segment-anything" `
+  --model_type vit_b `
+  --max_annotations 50 `
+  --save_examples 10
+
+
+
+
+
