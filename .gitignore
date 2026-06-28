@@ -15,7 +15,7 @@ singularity/*.simg
 singularity/models/
 "Foundation & Open-Vocabulary Segmentation Models/COCO_SAM/"
 "Foundation & Open-Vocabulary Segmentation Models/MedSAM/"
-"Foundation & Open-Vocabulary Segmentation Models/sam3/"
+# "Foundation & Open-Vocabulary Segmentation Models/sam3/"
 "Foundation & Open-Vocabulary Segmentation Models/SIIM/"
 "Foundation & Open-Vocabulary Segmentation Models/images_*/"
 "Foundation & Open-Vocabulary Segmentation Models/sam_batch_output/"
