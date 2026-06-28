@@ -143,8 +143,12 @@ def main():
     print("Boxes to process:", len(df))
 
     print("Loading SAM...")
-    sam_model = SamModel.from_pretrained("facebook/sam-vit-base").to(device)
-    sam_processor = SamProcessor.from_pretrained("facebook/sam-vit-base")
+    # sam_model = SamModel.from_pretrained("facebook/sam-vit-base").to(device)
+    # sam_processor = SamProcessor.from_pretrained("facebook/sam-vit-base")
+
+
+    sam_model = SamModel.from_pretrained("wanglab/medsam-vit-base").to(device)
+    sam_processor = SamProcessor.from_pretrained("wanglab/medsam-vit-base")
     sam_model.eval()
 
     print("Loading GroundingDINO...")

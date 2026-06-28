@@ -1,26 +1,19 @@
-# ====================================================================
-# Ignore all generated artifact directories and massive data folders
-# ====================================================================
+# System- und Umgebungsdateien
+*env/
+*.pth
+*.dll
+*.lib
+*.json
+__pycache__/
 
-# Matches any images folder starting with 'images_' anywhere in the repo
-**/images_*/
-**/SIIM/
-
-# Output and experiment directories anywhere in the repo
-**/combined_plots/
-**/sam_batch_output/
-**/sam_experimente_output/
-**/text_prompt_output_10/
-**/text_prompt_output_50/
-
-# Python caching and environment overhead
-**/__pycache__/
-*.pyc
-
-# Heavy CSV datasets
-**/Data_Entry_2017.csv
-
-# Random loose visual checks
-**/sam_kontrolle.png
-**/dataset.py
-**/sam.py
+# Datensätze und fremde Repositories (mit Pfadangabe für den Unterordner)
+data/
+annotations/
+"Foundation & Open-Vocabulary Segmentation Models/COCO_SAM/"
+"Foundation & Open-Vocabulary Segmentation Models/MedSAM/"
+"Foundation & Open-Vocabulary Segmentation Models/sam3/"
+"Foundation & Open-Vocabulary Segmentation Models/SIIM/"
+"Foundation & Open-Vocabulary Segmentation Models/images_*/"
+"Foundation & Open-Vocabulary Segmentation Models/sam_batch_output/"
+"Foundation & Open-Vocabulary Segmentation Models/sam_experimente_output/"
+"Foundation & Open-Vocabulary Segmentation Models/text_prompt_output_*/"
