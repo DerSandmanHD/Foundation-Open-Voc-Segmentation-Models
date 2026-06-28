@@ -7,6 +7,7 @@ From: nvidia/cuda:12.8.1-cudnn-runtime-ubuntu24.04
 
     Targeted scripts:
       - sam3_cluster/smoke_test.py
+      - sam3_cluster/sam31_smoke_test.py
       - sam3_cluster/nih_text_benchmark.py
 
     Main runtime versions:
@@ -17,7 +18,7 @@ From: nvidia/cuda:12.8.1-cudnn-runtime-ubuntu24.04
       - Torchvision: 0.25.0+cu128
       - SAM3 source: official facebookresearch/sam3 commit 8e451d5
 
-    The gated facebook/sam3 checkpoint is intentionally not stored in this
+    The gated facebook/sam3.1 checkpoint is intentionally not stored in this
     image. Download it after authentication with sam3_download_checkpoint.sh.
 
 %labels

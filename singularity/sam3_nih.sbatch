@@ -10,10 +10,10 @@
 
 set -euo pipefail
 
-SINGULARITY_DIR="${SAM3_SINGULARITY_DIR:-${HOME}/singularity}"
-PROJECT_ROOT="${SAM3_PROJECT_ROOT:-${HOME}/Foundation-Open-Voc-Segmentation-Models}"
+SINGULARITY_DIR="${SAM3_SINGULARITY_DIR:-${SLURM_SUBMIT_DIR}}"
+PROJECT_ROOT="${SAM3_PROJECT_ROOT:-$(cd "${SINGULARITY_DIR}/.." && pwd)}"
 IMAGE_PATH="${SAM3_SINGULARITY_IMAGE:-${SINGULARITY_DIR}/sam3_master.simg}"
-CHECKPOINT_PATH="${SAM3_CHECKPOINT:-${SINGULARITY_DIR}/models/sam3.pt}"
+CHECKPOINT_PATH="${SAM3_CHECKPOINT:-${SINGULARITY_DIR}/models/sam3.1_multiplex.pt}"
 
 if [[ ! -f "${IMAGE_PATH}" ]]; then
     echo "Singularity-Image fehlt: ${IMAGE_PATH}" >&2
@@ -42,6 +42,5 @@ nvidia-smi
 singularity exec --nv --bind /scratch:/scratch "${IMAGE_PATH}" \
     python -m sam3_cluster.nih_text_benchmark \
     --checkpoint "${CHECKPOINT_PATH}" \
-    --precision bf16 \
     --output-dir "${PROJECT_ROOT}/sam3_outputs/nih_atelectasis" \
     "$@"

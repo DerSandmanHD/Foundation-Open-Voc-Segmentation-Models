@@ -11,7 +11,7 @@ Project-Aria-Setup:
 ├── sam3_smoke.sbatch
 ├── sam3_nih.sbatch
 ├── models/
-│   ├── sam3.pt                      # separater, zugriffsgeschützter Checkpoint
+│   ├── sam3.1_multiplex.pt          # separater, zugriffsgeschützter Checkpoint
 │   └── config.json
 ├── sam3_smoke.JOBID.out
 ├── sam3_smoke.JOBID.err
@@ -24,7 +24,7 @@ Project-Aria-Setup:
 Im hochgeladenen Projekt liegt SAM3-Quellcode, aber nicht das vollständige
 Modell:
 
-1. `sam3.pt` beziehungsweise andere Modellgewichte sind nicht vorhanden.
+1. `sam3.1_multiplex.pt` beziehungsweise andere Modellgewichte sind nicht vorhanden.
 2. Der Quellcode ist unvollständig. Insbesondere fehlt
    `sam3/sam3/train/data/collator.py`, obwohl die Inferenzmodule diese Datei
    importieren. Ursache war der globale `.gitignore`-Eintrag `data/`.
@@ -33,22 +33,22 @@ Das Rezept installiert deshalb einen vollständigen, gepinnten Checkout des
 offiziellen SAM3-Repositories in das Image. Die zugriffsgeschützten Gewichte
 werden nach dem Build separat über dein Hugging-Face-Konto heruntergeladen.
 
-## 1. Dateien nach `~/singularity` kopieren
+## 1. Dateien im Projekt verwenden
 
-Auf login3:
+Auf login3 kann direkt der bereits vorhandene Projektordner verwendet werden:
 
 ```bash
-mkdir -p ~/singularity
-cp ~/Foundation-Open-Voc-Segmentation-Models/singularity/sam3* ~/singularity/
-cd ~/singularity
+cd ~/projekte/Foundation-Open-Voc-Segmentation-Models/singularity
 ```
 
-Falls dein Projektordner anders heißt, wird später `SAM3_PROJECT_ROOT` gesetzt.
+Die Batchdateien leiten die Projektwurzel automatisch vom Verzeichnis ab, in
+dem `sbatch` aufgerufen wird. Falls die Singularity-Dateien separat nach
+`~/singularity` kopiert werden, muss `SAM3_PROJECT_ROOT` explizit gesetzt werden.
 
 ## 2. Image bauen
 
 ```bash
-cd ~/singularity
+cd ~/projekte/Foundation-Open-Voc-Segmentation-Models/singularity
 singularity build --fakeroot sam3_master.simg sam3.recipe
 ```
 
@@ -76,10 +76,10 @@ Build auf dem Login-Knoten ohne GPU läuft. Entscheidend ist später
 
 ## 3. Hugging-Face-Zugriff und Checkpoint
 
-Sobald dein Antrag für `facebook/sam3` genehmigt wurde:
+Sobald dein Antrag für `facebook/sam3.1` genehmigt wurde:
 
 ```bash
-cd ~/singularity
+cd ~/projekte/Foundation-Open-Voc-Segmentation-Models/singularity
 singularity exec sam3_master.simg hf auth login
 bash sam3_download_checkpoint.sh
 ```
@@ -87,8 +87,8 @@ bash sam3_download_checkpoint.sh
 Danach müssen diese Dateien existieren:
 
 ```bash
-ls -lh ~/singularity/models/sam3.pt
-ls -lh ~/singularity/models/config.json
+ls -lh models/sam3.1_multiplex.pt
+ls -lh models/config.json
 ```
 
 Der Checkpoint wird nicht in das Image eingebaut. Dadurch bleibt dein
@@ -98,14 +98,17 @@ Container ausgetauscht werden.
 ## 4. Smoke-Test
 
 ```bash
-cd ~/singularity
+cd ~/projekte/Foundation-Open-Voc-Segmentation-Models/singularity
 sbatch sam3_smoke.sbatch \
-  --image /home/eker/pfad/testbild.png \
-  --prompt "lungs"
+  --image "$HOME/projekte/Foundation-Open-Voc-Segmentation-Models/Foundation & Open-Vocabulary Segmentation Models/sam3/assets/images/truck.jpg" \
+  --prompt "truck"
 ```
 
-Der Job verwendet die kostenlose `test`-Partition, eine GPU und FP16. Logs
-werden als `sam3_smoke.JOBID.out` und `sam3_smoke.JOBID.err` gespeichert.
+Der SAM3.1-Multiplex-Predictor behandelt das einzelne Bild intern als
+Ein-Frame-Sequenz. Der Job verwendet die `day`-Partition und eine A4000, da der
+3,5-GB-Checkpoint und die Multiplex-Architektur für die 11-GB-GPUs zu knapp
+sein können. Logs werden als `sam3_smoke.JOBID.out` und
+`sam3_smoke.JOBID.err` gespeichert.
 
 Wenn das Projekt auf dem Cluster anders heißt:
 
@@ -120,8 +123,8 @@ Gemäß TCML-Empfehlung wird der Bilddatensatz für den Job nach
 `/scratch/$SLURM_JOB_ID` kopiert:
 
 ```bash
-cd ~/singularity
-export SAM3_PROJECT_ROOT=/home/eker/Foundation-Open-Voc-Segmentation-Models
+cd ~/projekte/Foundation-Open-Voc-Segmentation-Models/singularity
+export SAM3_PROJECT_ROOT=/home/eker/projekte/Foundation-Open-Voc-Segmentation-Models
 export SAM3_STAGE_DATASET=/home/eker/datasets/nih-images
 
 sbatch sam3_nih.sbatch \

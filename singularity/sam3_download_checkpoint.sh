@@ -12,8 +12,8 @@ fi
 
 mkdir -p "${MODEL_DIR}"
 
-singularity exec "${IMAGE_PATH}" hf download facebook/sam3 \
-    sam3.pt config.json \
+singularity exec "${IMAGE_PATH}" hf download facebook/sam3.1 \
+    sam3.1_multiplex.pt config.json \
     --local-dir "${MODEL_DIR}"
 
-echo "Checkpoint: ${MODEL_DIR}/sam3.pt"
+echo "Checkpoint: ${MODEL_DIR}/sam3.1_multiplex.pt"
