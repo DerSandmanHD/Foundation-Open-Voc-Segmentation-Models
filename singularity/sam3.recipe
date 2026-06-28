@@ -1,0 +1,139 @@
+Bootstrap: docker
+From: nvidia/cuda:12.8.1-cudnn-runtime-ubuntu24.04
+
+%help
+    Singularity image for SAM3 image inference and the NIH chest X-ray benchmark
+    on the TCML cluster.
+
+    Targeted scripts:
+      - sam3_cluster/smoke_test.py
+      - sam3_cluster/nih_text_benchmark.py
+
+    Main runtime versions:
+      - OS: Ubuntu 24.04
+      - CUDA runtime: 12.8.1, used with singularity --nv on TCML
+      - Python: 3.12
+      - PyTorch: 2.10.0+cu128
+      - Torchvision: 0.25.0+cu128
+      - SAM3 source: official facebookresearch/sam3 commit 8e451d5
+
+    The gated facebook/sam3 checkpoint is intentionally not stored in this
+    image. Download it after authentication with sam3_download_checkpoint.sh.
+
+%labels
+    maintainer dersandmannhd
+    project "Foundation & Open-Vocabulary Segmentation Models"
+    version "v0.1"
+    python.version "3.12"
+    cuda.version "12.8.1"
+    torch.version "2.10.0+cu128"
+    torchvision.version "0.25.0+cu128"
+    sam3.commit "8e451d5"
+
+%environment
+    export VIRTUAL_ENV=/opt/sam3_env
+    export PATH=/opt/sam3_env/bin:$PATH
+    export PYTHONUNBUFFERED=1
+    export PYTHONNOUSERSITE=1
+    export MPLBACKEND=Agg
+    export PIP_DISABLE_PIP_VERSION_CHECK=1
+    export HF_HOME=${HF_HOME:-$HOME/.cache/huggingface}
+
+%post
+    set -e
+
+    export DEBIAN_FRONTEND=noninteractive
+    ln -fs /usr/share/zoneinfo/Europe/Berlin /etc/localtime
+
+    apt-get update --fix-missing
+    apt-get install -y --no-install-recommends \
+        tzdata \
+        ca-certificates \
+        git \
+        build-essential \
+        pkg-config \
+        python3 \
+        python3-dev \
+        python3-pip \
+        python3-venv \
+        libglib2.0-0 \
+        libgl1 \
+        libgomp1
+
+    dpkg-reconfigure --frontend noninteractive tzdata
+    mkdir -p /scratch
+
+    python3 -m venv /opt/sam3_env
+    . /opt/sam3_env/bin/activate
+
+    python -m pip install --upgrade pip setuptools wheel
+
+    python -m pip install --no-cache-dir \
+        torch==2.10.0 \
+        torchvision==0.25.0 \
+        --index-url https://download.pytorch.org/whl/cu128
+
+    git clone https://github.com/facebookresearch/sam3.git /opt/sam3-source
+    git -C /opt/sam3-source checkout 8e451d5
+
+    # This file is missing from the incomplete SAM3 copy currently committed in
+    # the project repository. Its presence verifies a complete official clone.
+    test -f /opt/sam3-source/sam3/train/data/collator.py
+
+    python -m pip install --no-cache-dir /opt/sam3-source
+
+    python -m pip install --no-cache-dir \
+        numpy==1.26.4 \
+        pandas==2.3.3 \
+        matplotlib==3.10.9 \
+        pillow==11.3.0 \
+        tqdm==4.67.3
+
+    python -m pip check
+
+    apt-get clean
+    rm -rf /var/lib/apt/lists/*
+
+    echo "------------------------------------------------------------------"
+    echo "Versions of installed tools:"
+    python --version
+    python -m pip --version
+    python - <<'PY'
+from importlib.metadata import version
+import matplotlib
+import numpy
+import pandas
+import torch
+import torchvision
+import sam3
+
+print(f"numpy: {numpy.__version__}")
+print(f"pandas: {pandas.__version__}")
+print(f"matplotlib: {matplotlib.__version__}")
+print(f"torch: {torch.__version__}")
+print(f"torchvision: {torchvision.__version__}")
+print(f"torch CUDA runtime: {torch.version.cuda}")
+print(f"torch CUDA available during build: {torch.cuda.is_available()}")
+print(f"huggingface-hub: {version('huggingface-hub')}")
+print(f"sam3: {sam3.__file__}")
+PY
+    echo "------------------------------------------------------------------"
+
+%test
+    . /opt/sam3_env/bin/activate
+    python - <<'PY'
+from pathlib import Path
+import sam3
+import torch
+from sam3.model.sam3_image_processor import Sam3Processor
+from sam3.model_builder import build_sam3_image_model
+
+package_dir = Path(sam3.__file__).resolve().parent
+assert (package_dir / "train" / "data" / "collator.py").is_file()
+print("SAM3 import smoke test passed")
+print(f"torch={torch.__version__}, cuda_runtime={torch.version.cuda}")
+print(f"sam3={sam3.__file__}")
+PY
+
+%runscript
+    exec python "$@"

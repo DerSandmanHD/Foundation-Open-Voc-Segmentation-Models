@@ -56,3 +56,11 @@ The evaluation metrics focus on tracking structural behaviors rather than standa
 * **Geometric Execution Suite:** Codebase handling direct spatial input data, point mapping, and foundation model tracking.
 * **Open-Vocabulary Suite:** Script configurations connecting text encoders, zero-shot detectors, and segmentation decoders.
 * **Analytics Tooling:** Scripts to generate statistical metric distributions (barplots and boxplots) to visually compare the stability of each prompt type.
+
+---
+
+## 5. SAM3 Cluster Execution
+
+The repository now contains a CUDA-cluster setup and a direct SAM3 text-prompt
+benchmark. Installation, Hugging Face checkpoint preparation, Slurm examples,
+and benchmark commands are documented in [`SAM3_CLUSTER.md`](SAM3_CLUSTER.md).

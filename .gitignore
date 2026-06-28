@@ -9,6 +9,9 @@ __pycache__/
 # Datensätze und fremde Repositories (mit Pfadangabe für den Unterordner)
 data/
 annotations/
+sam3_outputs/
+singularity/*.simg
+singularity/models/
 "Foundation & Open-Vocabulary Segmentation Models/COCO_SAM/"
 "Foundation & Open-Vocabulary Segmentation Models/MedSAM/"
 "Foundation & Open-Vocabulary Segmentation Models/sam3/"
