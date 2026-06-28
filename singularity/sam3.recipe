@@ -66,12 +66,12 @@ From: nvidia/cuda:12.8.1-cudnn-runtime-ubuntu24.04
     python3 -m venv /opt/sam3_env
     . /opt/sam3_env/bin/activate
 
-    # SAM3 still imports pkg_resources. Setuptools 82 removed that module, so
-    # keep the runtime on the final compatible major version.
+    # SAM3 still imports pkg_resources. Keep the runtime below Setuptools 81,
+    # as recommended by pkg_resources' own compatibility warning.
     python -m pip install --upgrade \
         pip \
         wheel \
-        setuptools==81.0.0
+        setuptools==80.9.0
 
     python -m pip install --no-cache-dir \
         torch==2.10.0 \
@@ -92,7 +92,10 @@ From: nvidia/cuda:12.8.1-cudnn-runtime-ubuntu24.04
         pandas==2.3.3 \
         matplotlib==3.10.9 \
         pillow==11.3.0 \
-        tqdm==4.67.3
+        tqdm==4.67.3 \
+        einops==0.8.2 \
+        psutil==7.2.2 \
+        pycocotools==2.0.11
 
     python -m pip check
 
@@ -109,13 +112,20 @@ import matplotlib
 import numpy
 import pandas
 import pkg_resources
+import psutil
+import pycocotools
 import torch
 import torchvision
+import triton
 import sam3
+from einops import rearrange, repeat
 
 print(f"numpy: {numpy.__version__}")
 print(f"pandas: {pandas.__version__}")
 print(f"matplotlib: {matplotlib.__version__}")
+print(f"einops: {version('einops')}")
+print(f"psutil: {psutil.__version__}")
+print(f"pycocotools: {version('pycocotools')}")
 print(f"torch: {torch.__version__}")
 print(f"torchvision: {torchvision.__version__}")
 print(f"torch CUDA runtime: {torch.version.cuda}")
@@ -129,9 +139,13 @@ PY
     . /opt/sam3_env/bin/activate
     python - <<'PY'
 from pathlib import Path
+import einops
 import pkg_resources
+import psutil
+import pycocotools
 import sam3
 import torch
+import triton
 from sam3.model.sam3_image_processor import Sam3Processor
 from sam3.model_builder import build_sam3_image_model
 
