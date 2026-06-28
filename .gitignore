@@ -9,6 +9,7 @@ __pycache__/
 # Datensätze und fremde Repositories (mit Pfadangabe für den Unterordner)
 data/
 annotations/
+/models/
 sam3_outputs/
 singularity/*.simg
 singularity/models/
