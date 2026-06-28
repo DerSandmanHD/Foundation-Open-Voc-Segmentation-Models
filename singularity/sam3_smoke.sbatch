@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=sam3_smoke
-#SBATCH --partition=test
-#SBATCH --gres=gpu:1
+#SBATCH --partition=day
+#SBATCH --gres=gpu:A4000:1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem-per-cpu=6G
-#SBATCH --time=00:15:00
+#SBATCH --time=00:30:00
 #SBATCH --error=sam3_smoke.%J.err
 #SBATCH --output=sam3_smoke.%J.out
 

@@ -36,6 +36,14 @@ def require_cuda() -> str:
             "CUDA ist nicht verfügbar. Starte das Programm innerhalb eines GPU-Jobs "
             "und prüfe die CUDA-PyTorch-Installation."
         )
+    capability = torch.cuda.get_device_capability()
+    if capability < (7, 0):
+        raise RuntimeError(
+            f"Die zugewiesene GPU {torch.cuda.get_device_name()} hat Compute "
+            f"Capability {capability[0]}.{capability[1]}. Der installierte "
+            "PyTorch-2.10-/CUDA-12.8-Build benötigt mindestens 7.0. Fordere "
+            "auf TCML eine A4000 an."
+        )
     return "cuda"
 
 

@@ -110,10 +110,11 @@ statt `/home/...` einbindet. Ein eigenes Bild kann weiterhin mit `--image`
 angegeben werden; da zusätzliche Argumente zuletzt stehen, überschreibt es das
 Standardbild.
 
-Der SAM3.1-Multiplex-Predictor behandelt das einzelne Bild intern als
-Ein-Frame-Sequenz. Der Job verwendet die `day`-Partition und eine A4000, da der
-3,5-GB-Checkpoint und die Multiplex-Architektur für die 11-GB-GPUs zu knapp
-sein können. Logs werden als `sam3_smoke.JOBID.out` und
+Beide Smoke-Jobs verwenden die `day`-Partition und eine A4000. Die im
+SAM3-Container installierten PyTorch-2.10-/CUDA-12.8-Wheels unterstützen erst
+CUDA Compute Capability 7.0; die GTX 1080 Ti besitzt nur 6.1 und kann diese
+Wheels nicht ausführen. Der SAM3.1-Multiplex-Predictor behandelt das einzelne
+Bild intern als Ein-Frame-Sequenz. Logs werden als `sam3_smoke.JOBID.out` und
 `sam3_smoke.JOBID.err` gespeichert.
 
 Wenn das Projekt auf dem Cluster anders heißt:
