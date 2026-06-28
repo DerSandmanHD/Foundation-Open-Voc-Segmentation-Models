@@ -57,6 +57,7 @@ Das Rezept enthält:
 - Ubuntu 24.04 und CUDA 12.8.1
 - Python 3.12 in `/opt/sam3_env`
 - PyTorch 2.10.0 und Torchvision 0.25.0 mit CUDA 12.8
+- Setuptools 81.0.0, da SAM3 noch `pkg_resources` verwendet
 - vollständigen SAM3-Commit `8e451d5`
 - NumPy, Pandas, Matplotlib, Pillow und tqdm für den Benchmark
 

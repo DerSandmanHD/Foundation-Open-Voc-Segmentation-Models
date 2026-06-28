@@ -66,7 +66,12 @@ From: nvidia/cuda:12.8.1-cudnn-runtime-ubuntu24.04
     python3 -m venv /opt/sam3_env
     . /opt/sam3_env/bin/activate
 
-    python -m pip install --upgrade pip setuptools wheel
+    # SAM3 still imports pkg_resources. Setuptools 82 removed that module, so
+    # keep the runtime on the final compatible major version.
+    python -m pip install --upgrade \
+        pip \
+        wheel \
+        setuptools==81.0.0
 
     python -m pip install --no-cache-dir \
         torch==2.10.0 \
@@ -103,6 +108,7 @@ from importlib.metadata import version
 import matplotlib
 import numpy
 import pandas
+import pkg_resources
 import torch
 import torchvision
 import sam3
@@ -123,6 +129,7 @@ PY
     . /opt/sam3_env/bin/activate
     python - <<'PY'
 from pathlib import Path
+import pkg_resources
 import sam3
 import torch
 from sam3.model.sam3_image_processor import Sam3Processor
