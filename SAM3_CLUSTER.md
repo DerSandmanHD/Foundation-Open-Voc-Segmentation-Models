@@ -100,9 +100,15 @@ Container ausgetauscht werden.
 ```bash
 cd ~/projekte/Foundation-Open-Voc-Segmentation-Models/singularity
 sbatch sam3_smoke.sbatch \
-  --image "$HOME/projekte/Foundation-Open-Voc-Segmentation-Models/Foundation & Open-Vocabulary Segmentation Models/sam3/assets/images/truck.jpg" \
   --prompt "truck"
 ```
+
+Ohne `--image` verwenden die Smoke-Jobs automatisch das eingecheckte
+`truck.jpg`. Der Pfad wird aus `SLURM_SUBMIT_DIR` abgeleitet und funktioniert
+damit auch dann, wenn TCML das Home-Verzeichnis unter `/mnt/beegfs/home/...`
+statt `/home/...` einbindet. Ein eigenes Bild kann weiterhin mit `--image`
+angegeben werden; da zusätzliche Argumente zuletzt stehen, überschreibt es das
+Standardbild.
 
 Der SAM3.1-Multiplex-Predictor behandelt das einzelne Bild intern als
 Ein-Frame-Sequenz. Der Job verwendet die `day`-Partition und eine A4000, da der
