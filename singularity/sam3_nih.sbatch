@@ -41,11 +41,14 @@ fi
 
 DATA_ROOT="$(cd "${DATA_ROOT}" && pwd)"
 BBOX_CSV="$(cd "$(dirname "${BBOX_CSV}")" && pwd)/$(basename "${BBOX_CSV}")"
+mkdir -p "${OUTPUT_DIR}"
+OUTPUT_DIR="$(cd "${OUTPUT_DIR}" && pwd)"
 
 echo "Projekt: ${PROJECT_ROOT}"
 echo "NIH-Bildwurzel: ${DATA_ROOT}"
 echo "BBox-CSV: ${BBOX_CSV}"
 echo "Checkpoint: ${CHECKPOINT_PATH}"
+echo "Output: ${OUTPUT_DIR}"
 
 cd "${PROJECT_ROOT}"
 
@@ -58,7 +61,11 @@ fi
 
 nvidia-smi
 
-singularity exec --nv --bind /scratch:/scratch --bind "${DATA_ROOT}:${DATA_ROOT}:ro" "${IMAGE_PATH}" \
+singularity exec --nv \
+    --bind /scratch:/scratch \
+    --bind "${DATA_ROOT}:${DATA_ROOT}:ro" \
+    --bind "${OUTPUT_DIR}:${OUTPUT_DIR}:rw" \
+    "${IMAGE_PATH}" \
     python -m sam3_cluster.nih_text_benchmark \
     --image-root "${DATA_ROOT}" \
     --bbox-csv "${BBOX_CSV}" \

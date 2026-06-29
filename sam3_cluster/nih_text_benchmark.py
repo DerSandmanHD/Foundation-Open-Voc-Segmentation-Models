@@ -172,8 +172,10 @@ def save_overlay(
 def main() -> None:
     args = parse_args()
     output_dir = Path(args.output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
     examples_dir = output_dir / "examples"
-    examples_dir.mkdir(parents=True, exist_ok=True)
+    if args.save_examples > 0:
+        examples_dir.mkdir(parents=True, exist_ok=True)
 
     df = pd.read_csv(args.bbox_csv)
     image_col, label_col, x_col, y_col, w_col, h_col = detect_columns(df)
