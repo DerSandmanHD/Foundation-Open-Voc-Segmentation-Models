@@ -21,13 +21,23 @@ from sam3_cluster.common import (
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="SAM3 text benchmark on NIH CXR boxes")
+    parser = argparse.ArgumentParser(description="SAM3 benchmark on NIH CXR boxes")
     parser.add_argument("--image-root", required=True)
     parser.add_argument("--bbox-csv", required=True)
     parser.add_argument(
         "--label",
         default=None,
         help="Optional pathology filter. By default all BBox annotations are used.",
+    )
+    parser.add_argument(
+        "--prompt-mode",
+        choices=["box", "text", "text_box"],
+        default="box",
+        help=(
+            "box: NIH GT box as SAM3 geometric prompt, like benchmark.py. "
+            "text: SAM3 open-vocabulary text prompt. "
+            "text_box: text prompt plus NIH GT box prompt."
+        ),
     )
     parser.add_argument("--text-prompt", default=None)
     parser.add_argument(
@@ -36,7 +46,15 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Optional limit for test runs. Omit it to process all annotations.",
     )
-    parser.add_argument("--threshold", type=float, default=0.5)
+    parser.add_argument(
+        "--threshold",
+        type=float,
+        default=0.0,
+        help=(
+            "SAM3 confidence threshold. Default 0.0 mirrors benchmark.py by "
+            "keeping candidates and selecting the highest score."
+        ),
+    )
     parser.add_argument("--checkpoint", required=True, help="Local SAM3 sam3.pt")
     parser.add_argument(
         "--precision", choices=["bf16", "fp16", "fp32"], default="fp16"
@@ -75,12 +93,50 @@ def build_image_index(image_root: str) -> dict[str, str]:
     return index
 
 
+def xyxy_to_normalized_cxcywh(box: list[float], image_size: tuple[int, int]) -> list[float]:
+    width, height = image_size
+    x1, y1, x2, y2 = box
+    box_width = max(0.0, x2 - x1)
+    box_height = max(0.0, y2 - y1)
+    center_x = x1 + box_width / 2.0
+    center_y = y1 + box_height / 2.0
+    return [
+        center_x / width,
+        center_y / height,
+        box_width / width,
+        box_height / height,
+    ]
+
+
+def run_sam3_prompt(
+    processor,
+    image: Image.Image,
+    gt_box: list[float],
+    prompt_mode: str,
+    text_prompt: str,
+    precision: str,
+) -> dict:
+    with cuda_inference_context(precision):
+        state = processor.set_image(image)
+        if prompt_mode in {"text", "text_box"}:
+            state = processor.set_text_prompt(state=state, prompt=text_prompt)
+        if prompt_mode in {"box", "text_box"}:
+            prompt_box = xyxy_to_normalized_cxcywh(gt_box, image.size)
+            state = processor.add_geometric_prompt(
+                box=prompt_box,
+                label=True,
+                state=state,
+            )
+    return state
+
+
 def save_overlay(
     image: Image.Image,
     gt_box: list[float],
     selected: dict,
-    prompt: str,
+    prompt_title: str,
     output_path: Path,
+    prompt_box: list[float] | None = None,
 ) -> None:
     fig, ax = plt.subplots(figsize=(7, 7))
     ax.imshow(image)
@@ -92,6 +148,14 @@ def save_overlay(
             fill=False, color="red", linestyle="--", linewidth=2,
         )
     )
+    if prompt_box is not None:
+        bx1, by1, bx2, by2 = prompt_box
+        ax.add_patch(
+            plt.Rectangle(
+                (bx1, by1), bx2 - bx1, by2 - by1,
+                fill=False, color="yellow", linewidth=2,
+            )
+        )
     px1, py1, px2, py2 = selected["box"]
     ax.add_patch(
         plt.Rectangle(
@@ -99,7 +163,7 @@ def save_overlay(
             fill=False, color="lime", linewidth=2,
         )
     )
-    ax.set_title(f"SAM3: {prompt} | Score {selected['score']:.3f}")
+    ax.set_title(f"SAM3: {prompt_title} | Score {selected['score']:.3f}")
     ax.axis("off")
     fig.savefig(output_path, dpi=200, bbox_inches="tight")
     plt.close(fig)
@@ -153,7 +217,8 @@ def main() -> None:
             "annotation_number": annotation_number,
             "image": image_name,
             "label": label,
-            "experiment": "sam3_text_prompt",
+            "experiment": f"sam3_{args.prompt_mode}_prompt",
+            "prompt_mode": args.prompt_mode,
             "text_prompt": prompt,
             "confidence_threshold": args.threshold,
             "precision": args.precision,
@@ -168,12 +233,25 @@ def main() -> None:
         width = float(annotation[w_col])
         height = float(annotation[h_col])
         gt_box = [x, y, x + width, y + height]
+        base_row.update(
+            {
+                "gt_x1": gt_box[0],
+                "gt_y1": gt_box[1],
+                "gt_x2": gt_box[2],
+                "gt_y2": gt_box[3],
+            }
+        )
 
         try:
             image = Image.open(image_path).convert("RGB")
-            with cuda_inference_context(args.precision):
-                state = processor.set_image(image)
-                output = processor.set_text_prompt(state=state, prompt=prompt)
+            output = run_sam3_prompt(
+                processor=processor,
+                image=image,
+                gt_box=gt_box,
+                prompt_mode=args.prompt_mode,
+                text_prompt=prompt,
+                precision=args.precision,
+            )
             selected = select_highest_score(output)
 
             if selected is None:
@@ -199,10 +277,6 @@ def main() -> None:
                     "num_detections": selected["num_detections"],
                     "sam3_score": selected["score"],
                     **metrics,
-                    "gt_x1": gt_box[0],
-                    "gt_y1": gt_box[1],
-                    "gt_x2": gt_box[2],
-                    "gt_y2": gt_box[3],
                     "pred_x1": selected["box"][0],
                     "pred_y1": selected["box"][1],
                     "pred_x2": selected["box"][2],
@@ -214,8 +288,9 @@ def main() -> None:
                     image,
                     gt_box,
                     selected,
-                    prompt,
+                    args.prompt_mode if args.prompt_mode == "box" else prompt,
                     examples_dir / f"{annotation_number:05d}_{Path(image_name).stem}_sam3.png",
+                    prompt_box=gt_box if args.prompt_mode in {"box", "text_box"} else None,
                 )
                 saved_examples += 1
         except Exception as exc:

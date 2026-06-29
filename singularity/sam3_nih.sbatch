@@ -63,6 +63,8 @@ singularity exec --nv --bind /scratch:/scratch --bind "${DATA_ROOT}:${DATA_ROOT}
     --image-root "${DATA_ROOT}" \
     --bbox-csv "${BBOX_CSV}" \
     --checkpoint "${CHECKPOINT_PATH}" \
+    --prompt-mode box \
+    --threshold 0.0 \
     --precision fp16 \
     --save-examples 0 \
     --output-dir "${OUTPUT_DIR}" \
