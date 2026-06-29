@@ -1,0 +1,6 @@
+run_name,prompt_mode,text_prompt,threshold
+sam3_text_pneumothorax_t00,text,pneumothorax,0.0
+sam3_text_pneumothorax_in_chest_xray_t00,text,pneumothorax in chest x-ray,0.0
+sam3_text_lung_pneumothorax_t00,text,lung pneumothorax,0.0
+sam3_box_gt,box,pneumothorax,0.0
+sam3_text_box_pneumothorax_t00,text_box,pneumothorax,0.0

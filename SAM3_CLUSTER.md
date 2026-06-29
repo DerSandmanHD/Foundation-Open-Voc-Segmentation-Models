@@ -10,6 +10,7 @@ Project-Aria-Setup:
 ├── sam3_download_checkpoint.sh
 ├── sam3_smoke.sbatch
 ├── sam3_nih.sbatch
+├── sam3_nih_sweep.sbatch
 ├── models/
 │   ├── sam3.1_multiplex.pt          # separater, zugriffsgeschützter Checkpoint
 │   └── config.json
@@ -124,7 +125,7 @@ export SAM3_PROJECT_ROOT=/home/eker/PFAD/ZUM/PROJEKT
 sbatch sam3_smoke.sbatch --image /home/eker/pfad/testbild.png --prompt "lungs"
 ```
 
-## 5. NIH-Textbenchmark
+## 5. NIH-Benchmark
 
 Der Job verwendet standardmäßig den normalen SAM3-Checkpoint `sam3.pt`, also
 dasselbe Modell und dieselbe FP16-Inferenz wie der erfolgreiche
@@ -132,6 +133,11 @@ dasselbe Modell und dieselbe FP16-Inferenz wie der erfolgreiche
 Annotationen für 880 eindeutige Bilder. Ohne `--label` und ohne
 `--max-annotations` werden alle 984 Annotationen über alle acht Pathologien
 ausgewertet.
+
+NIH enthält Bounding-Boxes, aber keine Segmentierungsmasken. Die NIH-Metriken
+sind deshalb Proxy-Metriken gegen Radiologen-Boxen. Der Default ist
+`--prompt-mode box`: die NIH-Ground-Truth-Box wird als SAM3-Geometric-Prompt
+verwendet und SAM3 erzeugt daraus eine Maske.
 
 Mit der Verzeichnisstruktur `~/projekte/data/NIH_Dataset` genügt:
 
@@ -141,21 +147,40 @@ sbatch sam3_nih.sbatch
 ```
 
 Der Benchmark fordert eine A4000 in der `day`-Partition an und verwendet FP16.
-Er speichert keine Visualisierungen, sondern die Einzelresultate, eine
-Gesamtzusammenfassung und eine Zusammenfassung je Pathologie unter
+Er speichert die Einzelresultate, eine Gesamtzusammenfassung, eine
+Zusammenfassung je Pathologie und `config.json` unter
 `$SAM3_PROJECT_ROOT/sam3_outputs/nih_all_bbox_annotations`.
 
-Für einen kurzen Testlauf mit zehn gespeicherten Beispielen können Argumente
-überschrieben werden:
+Mit `--save-examples 10` werden zehn Präsentationsbilder nicht einfach aus den
+ersten Fällen genommen, sondern über die Kategorien `random`, `best`, `worst`
+und `median` verteilt:
 
 ```bash
-sbatch sam3_nih.sbatch --max-annotations 50 --save-examples 10
+sbatch sam3_nih.sbatch --save-examples 10
 ```
 
-Ein Filter wie `--label Atelectasis` wertet nur diese Pathologie aus. Ein
-festes `--text-prompt` sollte beim Lauf über alle Pathologien nicht gesetzt
-werden; standardmäßig wird pro Annotation deren Pathologiebezeichnung als
-Prompt verwendet.
+Die Bilder liegen anschließend unter:
+
+```text
+sam3_outputs/nih_all_bbox_annotations/examples/
+├── random/
+├── best/
+├── worst/
+└── median/
+```
+
+Ein Filter wie `--label Atelectasis` wertet nur diese Pathologie aus. Die
+Prompt-Modi sind:
+
+```text
+box       NIH-GT-Box als SAM3-Geometric-Prompt
+text      nur Textprompt
+text_box  Textprompt plus NIH-GT-Box
+```
+
+Textprompts können entweder fest mit `--text-prompt "abnormal opacity"` oder
+labelabhängig mit `--prompt-template "chest x-ray finding: {label}"` gesetzt
+werden.
 
 Abweichende Pfade können über Umgebungsvariablen gesetzt werden:
 
@@ -170,12 +195,63 @@ Optional kann `SAM3_STAGE_DATASET` gesetzt werden, um die Bilder vor der
 Inferenz nach `/scratch/$SLURM_JOB_ID` zu kopieren. Dafür muss ausreichend
 lokaler Scratch-Speicher vorhanden sein.
 
-## 6. SIIM-Pneumothorax-Textbenchmark
+## 6. NIH-Prompt-Sweep
+
+Für reproduzierbare Prompt-Vergleiche liegt eine Sweep-Datei im Projekt:
+
+```text
+sam3_cluster/nih_prompt_sweep.csv
+```
+
+Sie enthält unter anderem:
+
+- `box` mit GT-Box
+- `text` mit `{label}`
+- `text` mit radiologischen Prompt-Templates
+- `text_box` mit Text plus GT-Box
+
+Der gesamte Sweep läuft mit:
+
+```bash
+cd ~/projekte/Foundation-Open-Voc-Segmentation-Models/singularity
+export SAM3_NIH_ROOT=/home/eker/projekte/data/NIH_Dataset
+sbatch sam3_nih_sweep.sbatch
+```
+
+Standardoutput:
+
+```text
+sam3_outputs/nih_prompt_sweep/
+├── sam3_box_gt/
+├── sam3_text_label_t00/
+├── ...
+├── sweep_manifest.json
+├── sam3_nih_sweep_aggregate.csv
+└── sam3_nih_sweep_aggregate_by_label.csv
+```
+
+Für einen begrenzten Lauf:
+
+```bash
+sbatch sam3_nih_sweep.sbatch --max-annotations 50 --save-examples 8
+```
+
+Zusätzliche Sweep-Zeilen können direkt in `sam3_cluster/nih_prompt_sweep.csv`
+ergänzt werden.
+
+## 7. SIIM-Pneumothorax-Textbenchmark
 
 Der SIIM-Job sucht unter `~/projekte/data/SIIM_Dataset` automatisch nach dem
 vorverarbeiteten Ordnerpaar `dicom`/`mask`. Er wertet alle Fälle mit nicht
 leerer Pneumothorax-Maske aus und vereinigt alle SAM3-Textdetektionen eines
 Bildes zu einer Vorhersagemaske.
+
+Der Default ist bewusst `--prompt-mode text`, also echtes Open-Vocabulary mit
+`--text-prompt "pneumothorax"`. Wenn alle Fälle `no_detection` ergeben, ist das
+eine Aussage über den reinen Textprompt-Modus. Die alten Beispielbilder im
+Ordner `Foundation & Open-Vocabulary Segmentation Models/SIIM/example/`
+entstanden methodisch anders: dort wurden aus den GT-Masken Boxen erzeugt und
+als Prompt für SAM/MedSAM verwendet.
 
 ```bash
 cd ~/projekte/Foundation-Open-Voc-Segmentation-Models/singularity
@@ -183,12 +259,18 @@ export SAM3_SIIM_ROOT=/home/eker/projekte/data/SIIM_Dataset
 sbatch sam3_siim.sbatch
 ```
 
-Der Job speichert standardmäßig zehn mit festem Seed ausgewählte
-Visualisierungen sowie Dice, Mask-IoU, Pixel-Precision und Pixel-Recall:
+Der Job speichert standardmäßig zehn Visualisierungen, verteilt über
+`random`, `best`, `worst` und `median`, sowie Dice, Mask-IoU,
+Pixel-Precision und Pixel-Recall:
 
 ```text
 sam3_outputs/siim_pneumothorax/
 ├── examples/
+│   ├── random/
+│   ├── best/
+│   ├── worst/
+│   └── median/
+├── config.json
 ├── sam3_siim_results.csv
 └── sam3_siim_summary.csv
 ```
@@ -207,4 +289,65 @@ beiden Ordner explizit übergeben werden:
 sbatch sam3_siim.sbatch \
   --image-dir /pfad/zu/dicom \
   --mask-dir /pfad/zu/mask
+```
+
+Für den mit den alten SIIM-Beispielen vergleichbaren Box-Prompt-Modus:
+
+```bash
+sbatch sam3_siim.sbatch \
+  --prompt-mode box \
+  --output-dir /home/eker/projekte/Foundation-Open-Voc-Segmentation-Models/sam3_outputs/siim_box_gt \
+  --save-examples 10
+```
+
+Für Text plus GT-Box:
+
+```bash
+sbatch sam3_siim.sbatch \
+  --prompt-mode text_box \
+  --text-prompt "pneumothorax" \
+  --output-dir /home/eker/projekte/Foundation-Open-Voc-Segmentation-Models/sam3_outputs/siim_text_box_pneumothorax
+```
+
+## 8. SIIM-Prompt-Sweep
+
+Der SIIM-Sweep vergleicht reinen Text, alternative Pneumothorax-Prompts,
+GT-Box-Prompting und Text+Box:
+
+```bash
+cd ~/projekte/Foundation-Open-Voc-Segmentation-Models/singularity
+export SAM3_SIIM_ROOT=/home/eker/projekte/data/SIIM_Dataset
+sbatch sam3_siim_sweep.sbatch
+```
+
+Output:
+
+```text
+sam3_outputs/siim_prompt_sweep/
+├── sam3_text_pneumothorax_t00/
+├── sam3_text_pneumothorax_in_chest_xray_t00/
+├── sam3_text_lung_pneumothorax_t00/
+├── sam3_box_gt/
+├── sam3_text_box_pneumothorax_t00/
+├── sweep_manifest.json
+└── sam3_siim_sweep_aggregate.csv
+```
+
+## 9. Ergebnisse aggregieren
+
+Beliebige NIH- und SIIM-Run-Ordner können nachträglich aggregiert werden:
+
+```bash
+cd ~/projekte/Foundation-Open-Voc-Segmentation-Models
+singularity exec --nv singularity/sam3_master.simg \
+  python -m sam3_cluster.aggregate_runs \
+  --input-root sam3_outputs/nih_prompt_sweep sam3_outputs/siim_pneumothorax \
+  --output-csv sam3_outputs/aggregate_runs.csv
+```
+
+Das erzeugt:
+
+```text
+sam3_outputs/aggregate_runs.csv
+sam3_outputs/aggregate_runs_by_label.csv
 ```

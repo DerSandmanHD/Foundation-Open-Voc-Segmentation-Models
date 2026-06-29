@@ -1,0 +1,9 @@
+run_name,prompt_mode,text_prompt,prompt_template,label,threshold
+sam3_box_gt,box,,,,0.0
+sam3_text_label_t00,text,,{label},,0.0
+sam3_text_chest_xray_finding_t00,text,,chest x-ray finding: {label},,0.0
+sam3_text_radiology_finding_t00,text,,radiology finding: {label},,0.0
+sam3_text_in_chest_xray_t00,text,,{label} in chest x-ray,,0.0
+sam3_text_abnormal_opacity_t00,text,abnormal opacity,,,0.0
+sam3_text_box_label_t00,text_box,,{label},,0.0
+sam3_text_box_chest_xray_finding_t00,text_box,,chest x-ray finding: {label},,0.0
