@@ -169,3 +169,42 @@ sbatch sam3_nih.sbatch
 Optional kann `SAM3_STAGE_DATASET` gesetzt werden, um die Bilder vor der
 Inferenz nach `/scratch/$SLURM_JOB_ID` zu kopieren. Dafür muss ausreichend
 lokaler Scratch-Speicher vorhanden sein.
+
+## 6. SIIM-Pneumothorax-Textbenchmark
+
+Der SIIM-Job sucht unter `~/projekte/data/SIIM_Dataset` automatisch nach dem
+vorverarbeiteten Ordnerpaar `dicom`/`mask`. Er wertet alle Fälle mit nicht
+leerer Pneumothorax-Maske aus und vereinigt alle SAM3-Textdetektionen eines
+Bildes zu einer Vorhersagemaske.
+
+```bash
+cd ~/projekte/Foundation-Open-Voc-Segmentation-Models/singularity
+export SAM3_SIIM_ROOT=/home/eker/projekte/data/SIIM_Dataset
+sbatch sam3_siim.sbatch
+```
+
+Der Job speichert standardmäßig zehn mit festem Seed ausgewählte
+Visualisierungen sowie Dice, Mask-IoU, Pixel-Precision und Pixel-Recall:
+
+```text
+sam3_outputs/siim_pneumothorax/
+├── examples/
+├── sam3_siim_results.csv
+└── sam3_siim_summary.csv
+```
+
+Die Zahl der Präsentationsbilder oder ein kurzer Testlauf können über
+Argumente gesteuert werden:
+
+```bash
+sbatch sam3_siim.sbatch --max-images 50 --save-examples 6
+```
+
+Falls die automatische Erkennung nicht zur lokalen Struktur passt, können die
+beiden Ordner explizit übergeben werden:
+
+```bash
+sbatch sam3_siim.sbatch \
+  --image-dir /pfad/zu/dicom \
+  --mask-dir /pfad/zu/mask
+```

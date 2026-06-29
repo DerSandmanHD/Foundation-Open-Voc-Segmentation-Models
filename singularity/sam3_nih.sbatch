@@ -39,6 +39,14 @@ if [[ ! -f "${BBOX_CSV}" ]]; then
     exit 1
 fi
 
+DATA_ROOT="$(cd "${DATA_ROOT}" && pwd)"
+BBOX_CSV="$(cd "$(dirname "${BBOX_CSV}")" && pwd)/$(basename "${BBOX_CSV}")"
+
+echo "Projekt: ${PROJECT_ROOT}"
+echo "NIH-Bildwurzel: ${DATA_ROOT}"
+echo "BBox-CSV: ${BBOX_CSV}"
+echo "Checkpoint: ${CHECKPOINT_PATH}"
+
 cd "${PROJECT_ROOT}"
 
 if [[ -n "${SAM3_STAGE_DATASET:-}" ]]; then
@@ -50,7 +58,7 @@ fi
 
 nvidia-smi
 
-singularity exec --nv --bind /scratch:/scratch "${IMAGE_PATH}" \
+singularity exec --nv --bind /scratch:/scratch --bind "${DATA_ROOT}:${DATA_ROOT}:ro" "${IMAGE_PATH}" \
     python -m sam3_cluster.nih_text_benchmark \
     --image-root "${DATA_ROOT}" \
     --bbox-csv "${BBOX_CSV}" \

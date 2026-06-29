@@ -124,6 +124,21 @@ def main() -> None:
         raise RuntimeError("Nach dem Filter sind keine Annotationen übrig.")
 
     image_index = build_image_index(args.image_root)
+    csv_image_names = set(df[image_col].astype(str))
+    matched_image_names = csv_image_names.intersection(image_index)
+    print(f"Bildwurzel: {Path(args.image_root).resolve()}")
+    print(f"Gefundene Bilddateien: {len(image_index)}")
+    print(f"Passende CSV-Bilder: {len(matched_image_names)} / {len(csv_image_names)}")
+    if not matched_image_names:
+        indexed_examples = sorted(image_index)[:5]
+        csv_examples = sorted(csv_image_names)[:5]
+        raise RuntimeError(
+            "Kein einziger Dateiname aus der BBox-CSV wurde unter --image-root "
+            f"gefunden. Beispiele im Bildordner: {indexed_examples or 'keine'}; "
+            f"Beispiele aus der CSV: {csv_examples}. Prüfe, ob die NIH-Archive "
+            "wirklich bis zu den PNG-Dateien entpackt wurden und ob "
+            "SAM3_NIH_ROOT auf deren gemeinsamen Oberordner zeigt."
+        )
     _, processor, _ = load_image_model(args.checkpoint, args.threshold)
     rows: list[dict] = []
     saved_examples = 0

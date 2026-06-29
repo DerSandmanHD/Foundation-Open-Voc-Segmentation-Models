@@ -9,6 +9,7 @@ From: nvidia/cuda:12.8.1-cudnn-runtime-ubuntu24.04
       - sam3_cluster/smoke_test.py
       - sam3_cluster/sam31_smoke_test.py
       - sam3_cluster/nih_text_benchmark.py
+      - sam3_cluster/siim_text_benchmark.py
 
     Main runtime versions:
       - OS: Ubuntu 24.04
