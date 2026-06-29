@@ -1,0 +1,38 @@
+# Daten
+data/
+
+# Ergebnisse
+results/
+
+# Virtual Environments
+ML_venv/
+ML_venv_linux/
+venv/
+.venv/
+
+# Modelle (große Checkpoint-Dateien)
+models/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# VS Code
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

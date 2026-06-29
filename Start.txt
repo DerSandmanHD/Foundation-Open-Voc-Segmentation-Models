@@ -1,0 +1,8 @@
+python src/evaluate_sam.py \
+  --coco_images data/COCO/val2017/val2017 \
+  --coco_annotations data/annotations/instances_val2017.json \
+  --checkpoint models/sam_vit_b_01ec64.pth \
+  --model_type vit_b \
+  --max_annotations 100 \
+  --save_examples 20 \
+  --output_dir results
