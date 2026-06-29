@@ -8,15 +8,15 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 from PIL import Image
 from tqdm import tqdm
 
 from sam3_cluster.common import (
+    cuda_inference_context,
     evaluate_mask_against_box,
-    require_complete_sam3_install,
-    require_cuda,
+    load_image_model,
+    select_highest_score,
 )
 
 
@@ -24,11 +24,23 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="SAM3 text benchmark on NIH CXR boxes")
     parser.add_argument("--image-root", required=True)
     parser.add_argument("--bbox-csv", required=True)
-    parser.add_argument("--label", default="Atelectasis")
+    parser.add_argument(
+        "--label",
+        default=None,
+        help="Optional pathology filter. By default all BBox annotations are used.",
+    )
     parser.add_argument("--text-prompt", default=None)
-    parser.add_argument("--max-annotations", type=int, default=50)
+    parser.add_argument(
+        "--max-annotations",
+        type=int,
+        default=None,
+        help="Optional limit for test runs. Omit it to process all annotations.",
+    )
     parser.add_argument("--threshold", type=float, default=0.5)
-    parser.add_argument("--checkpoint", required=True, help="Local sam3.1_multiplex.pt")
+    parser.add_argument("--checkpoint", required=True, help="Local SAM3 sam3.pt")
+    parser.add_argument(
+        "--precision", choices=["bf16", "fp16", "fp32"], default="fp16"
+    )
     parser.add_argument("--output-dir", default="sam3_outputs/nih_text")
     parser.add_argument("--save-examples", type=int, default=10)
     parser.add_argument("--fail-fast", action="store_true")
@@ -61,29 +73,6 @@ def build_image_index(image_root: str) -> dict[str, str]:
             if filename.lower().endswith((".png", ".jpg", ".jpeg")):
                 index[filename] = os.path.join(root, filename)
     return index
-
-
-def select_sam31_output(outputs: dict, image_size: tuple[int, int]):
-    probabilities = np.asarray(outputs.get("out_probs", []), dtype=np.float32)
-    if len(probabilities) == 0:
-        return None
-
-    masks = np.asarray(outputs["out_binary_masks"], dtype=bool)
-    boxes_xywh = np.asarray(outputs["out_boxes_xywh"], dtype=np.float32)
-    best_index = int(np.argmax(probabilities))
-    width, height = image_size
-    x, y, box_width, box_height = boxes_xywh[best_index]
-    return {
-        "score": float(probabilities[best_index]),
-        "mask": np.squeeze(masks[best_index]),
-        "box": [
-            float(x * width),
-            float(y * height),
-            float((x + box_width) * width),
-            float((y + box_height) * height),
-        ],
-        "num_detections": int(len(probabilities)),
-    }
 
 
 def save_overlay(
@@ -126,27 +115,16 @@ def main() -> None:
     image_col, label_col, x_col, y_col, w_col, h_col = detect_columns(df)
     if args.label:
         df = df[df[label_col].astype(str).str.casefold() == args.label.casefold()]
-    df = df.head(args.max_annotations).copy()
+    if args.max_annotations is not None:
+        if args.max_annotations <= 0:
+            raise ValueError("--max-annotations muss größer als 0 sein.")
+        df = df.head(args.max_annotations)
+    df = df.copy()
     if df.empty:
         raise RuntimeError("Nach dem Filter sind keine Annotationen übrig.")
 
     image_index = build_image_index(args.image_root)
-    require_complete_sam3_install()
-    require_cuda()
-    from sam3 import build_sam3_predictor
-
-    predictor = build_sam3_predictor(
-        checkpoint_path=args.checkpoint,
-        version="sam3.1",
-        compile=False,
-        warm_up=False,
-        max_num_objects=16,
-        multiplex_count=16,
-        use_fa3=False,
-        use_rope_real=False,
-        async_loading_frames=False,
-        default_output_prob_thresh=args.threshold,
-    )
+    _, processor, _ = load_image_model(args.checkpoint, args.threshold)
     rows: list[dict] = []
     saved_examples = 0
 
@@ -157,11 +135,13 @@ def main() -> None:
         label = str(annotation[label_col])
         prompt = args.text_prompt or label
         base_row = {
+            "annotation_number": annotation_number,
             "image": image_name,
             "label": label,
-            "experiment": "sam31_text_prompt",
+            "experiment": "sam3_text_prompt",
             "text_prompt": prompt,
             "confidence_threshold": args.threshold,
+            "precision": args.precision,
         }
         image_path = image_index.get(image_name)
         if image_path is None:
@@ -176,25 +156,10 @@ def main() -> None:
 
         try:
             image = Image.open(image_path).convert("RGB")
-            response = predictor.handle_request(
-                {"type": "start_session", "resource_path": image_path}
-            )
-            session_id = response["session_id"]
-            try:
-                response = predictor.handle_request(
-                    {
-                        "type": "add_prompt",
-                        "session_id": session_id,
-                        "frame_index": 0,
-                        "text": prompt,
-                        "output_prob_thresh": args.threshold,
-                    }
-                )
-                selected = select_sam31_output(response["outputs"], image.size)
-            finally:
-                predictor.handle_request(
-                    {"type": "close_session", "session_id": session_id}
-                )
+            with cuda_inference_context(args.precision):
+                state = processor.set_image(image)
+                output = processor.set_text_prompt(state=state, prompt=prompt)
+            selected = select_highest_score(output)
 
             if selected is None:
                 rows.append(
@@ -260,6 +225,14 @@ def main() -> None:
         summary = evaluated[metric_columns].mean().to_frame(name="mean")
         summary["median"] = evaluated[metric_columns].median()
     summary.to_csv(output_dir / "sam3_nih_summary.csv")
+
+    if evaluated.empty:
+        summary_by_label = pd.DataFrame()
+    else:
+        summary_by_label = evaluated.groupby("label")[metric_columns].agg(
+            ["count", "mean", "median"]
+        )
+    summary_by_label.to_csv(output_dir / "sam3_nih_summary_by_label.csv")
 
     print(result_df["status"].value_counts(dropna=False))
     print(summary)

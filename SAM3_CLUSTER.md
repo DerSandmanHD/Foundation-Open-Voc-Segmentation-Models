@@ -126,30 +126,46 @@ sbatch sam3_smoke.sbatch --image /home/eker/pfad/testbild.png --prompt "lungs"
 
 ## 5. NIH-Textbenchmark
 
-Gemäß TCML-Empfehlung wird der Bilddatensatz für den Job nach
-`/scratch/$SLURM_JOB_ID` kopiert:
+Der Job verwendet standardmäßig den normalen SAM3-Checkpoint `sam3.pt`, also
+dasselbe Modell und dieselbe FP16-Inferenz wie der erfolgreiche
+`sam3_smoke.sbatch`-Lauf. Die `BBox_List_2017.csv` enthält 984 räumliche
+Annotationen für 880 eindeutige Bilder. Ohne `--label` und ohne
+`--max-annotations` werden alle 984 Annotationen über alle acht Pathologien
+ausgewertet.
+
+Mit der Verzeichnisstruktur `~/projekte/data/NIH_Dataset` genügt:
 
 ```bash
 cd ~/projekte/Foundation-Open-Voc-Segmentation-Models/singularity
-export SAM3_PROJECT_ROOT=/home/eker/projekte/Foundation-Open-Voc-Segmentation-Models
-export SAM3_STAGE_DATASET=/home/eker/datasets/nih-images
-
-sbatch sam3_nih.sbatch \
-  --bbox-csv "$SAM3_PROJECT_ROOT/Foundation & Open-Vocabulary Segmentation Models/BBox_List_2017.csv" \
-  --label Atelectasis \
-  --text-prompt "atelectasis" \
-  --max-annotations 50
+sbatch sam3_nih.sbatch
 ```
 
-Der Benchmark fordert eine A4000 in der `day`-Partition an und verwendet BF16.
-Ergebnisse werden unter
-`$SAM3_PROJECT_ROOT/sam3_outputs/nih_atelectasis` gespeichert.
+Der Benchmark fordert eine A4000 in der `day`-Partition an und verwendet FP16.
+Er speichert keine Visualisierungen, sondern die Einzelresultate, eine
+Gesamtzusammenfassung und eine Zusammenfassung je Pathologie unter
+`$SAM3_PROJECT_ROOT/sam3_outputs/nih_all_bbox_annotations`.
 
-Ohne Staging kann stattdessen direkt ein Bildpfad übergeben werden:
+Für einen kurzen Testlauf mit zehn gespeicherten Beispielen können Argumente
+überschrieben werden:
 
 ```bash
-unset SAM3_STAGE_DATASET
-sbatch sam3_nih.sbatch \
-  --image-root /common/ODER/HOME/PFAD/nih-images \
-  --bbox-csv /home/eker/PFAD/BBox_List_2017.csv
+sbatch sam3_nih.sbatch --max-annotations 50 --save-examples 10
 ```
+
+Ein Filter wie `--label Atelectasis` wertet nur diese Pathologie aus. Ein
+festes `--text-prompt` sollte beim Lauf über alle Pathologien nicht gesetzt
+werden; standardmäßig wird pro Annotation deren Pathologiebezeichnung als
+Prompt verwendet.
+
+Abweichende Pfade können über Umgebungsvariablen gesetzt werden:
+
+```bash
+export SAM3_NIH_ROOT=/anderer/pfad/NIH_Dataset
+export SAM3_NIH_BBOX_CSV=/anderer/pfad/BBox_List_2017.csv
+export SAM3_NIH_OUTPUT_DIR=/anderer/pfad/ergebnisse
+sbatch sam3_nih.sbatch
+```
+
+Optional kann `SAM3_STAGE_DATASET` gesetzt werden, um die Bilder vor der
+Inferenz nach `/scratch/$SLURM_JOB_ID` zu kopieren. Dafür muss ausreichend
+lokaler Scratch-Speicher vorhanden sein.
